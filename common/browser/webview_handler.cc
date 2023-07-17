@@ -639,7 +639,7 @@ void WebviewHandler::HandleMethodCall(
         }
 
         auto page_width = util::GetIntFromMap(m, "pageWidth");
-        auto page_height = util::GetIntFromMap(m, "pageHieght");
+        auto page_height = util::GetIntFromMap(m, "pageHeight");
         if (page_width && page_height) {
             printSettings.page_width = *page_width;
             printSettings.page_height = *page_height;
