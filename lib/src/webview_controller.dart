@@ -290,10 +290,13 @@ class WebViewController extends ValueNotifier<bool> {
   /// The output paper size can be specified by [pageWidth] and [pageHeight] in
   /// microns, if either of these values is less than or equal to zero then the
   /// default paper size (A4) will be used.
+  /// Set [backgroundsEnabled] to true to print background graphics or false to
+  /// not print background graphics.
   Future<bool> printToPDF({
     required String filepath,
     int? pageWidth,
     int? pageHeight,
+    bool backgroundsEnabled = true,
   }) async {
     if (_isDisposed) {
       return false;
@@ -303,6 +306,7 @@ class WebViewController extends ValueNotifier<bool> {
       'path': filepath,
       'pageWidth': pageWidth,
       'pageHeight': pageHeight,
+      'backgroundsEnabled': backgroundsEnabled,
     })) ?? false;
   }
 

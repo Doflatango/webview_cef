@@ -23,4 +23,13 @@ std::optional<std::int32_t> GetIntFromMap(const flutter::EncodableMap* m, const 
     return std::nullopt;
 }
 
+std::optional<bool> GetBoolFromMap(const flutter::EncodableMap* m, const std::string key) {
+    auto it = m->find(key);
+    if (it != m->end() && !it->second.IsNull()) {
+        return std::make_optional(std::get<bool>(it->second));
+    }
+
+    return std::nullopt;
+}
+
 }

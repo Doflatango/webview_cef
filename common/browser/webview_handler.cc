@@ -114,7 +114,6 @@ class CustomPdfPrintCallback : public CefPdfPrintCallback {
     CustomPdfPrintCallback(std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) : _result(std::move(result)) {}
 
     void OnPdfPrintFinished(const CefString& path, bool ok) {
-        std::cout << "CustomPdfPrintCallback::OnPdfPrintFinished" << ok << std::endl;
         _result->Success(ok);
     }
 
@@ -497,9 +496,7 @@ void WebviewHandler::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect) {
 }
 
 void WebviewHandler::PrintToPDF(std::string path, const CefPdfPrintSettings& settings, std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
-    std::cout << "WebviewHandler::PrintToPDF" << std::endl;
     CefRefPtr<CustomPdfPrintCallback> callback = new CustomPdfPrintCallback(std::move(result));
-    std::cout << "WebviewHandler::PrintToPDF 222" << std::endl;
     this->browser_->GetHost()->PrintToPDF(path, settings, callback);
 }
 
@@ -635,6 +632,11 @@ void WebviewHandler::HandleMethodCall(
         }
 
         CefPdfPrintSettings printSettings = CefPdfPrintSettings{};
+
+        auto backgrounds_enabled = util::GetBoolFromMap(m, "backgroundsEnabled");
+        if (backgrounds_enabled) {
+            printSettings.backgrounds_enabled = true;
+        }
 
         auto page_width = util::GetIntFromMap(m, "pageWidth");
         auto page_height = util::GetIntFromMap(m, "pageHieght");

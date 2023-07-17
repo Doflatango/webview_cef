@@ -8,6 +8,7 @@ namespace util {
 
 std::optional<std::string> GetStringFromMap(const flutter::EncodableMap* m, const std::string key);
 std::optional<std::int32_t> GetIntFromMap(const flutter::EncodableMap* m, const std::string key);
+std::optional<bool> GetBoolFromMap(const flutter::EncodableMap* m, const std::string key);
 
 }
 #endif // COMMON_UTIL_H_
