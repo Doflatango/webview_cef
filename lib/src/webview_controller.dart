@@ -285,6 +285,27 @@ class WebViewController extends ValueNotifier<bool> {
     return _broswerChannel.invokeMethod('openDevTools');
   }
 
+  /// Prints current page as PDF file.
+  /// If successes, returns true and file will be saved at [filepath].
+  /// The output paper size can be specified by [pageWidth] and [pageHeight] in
+  /// microns, if either of these values is less than or equal to zero then the
+  /// default paper size (A4) will be used.
+  Future<bool> printToPDF({
+    required String filepath,
+    int? pageWidth,
+    int? pageHeight,
+  }) async {
+    if (_isDisposed) {
+      return false;
+    }
+    assert(value);
+    return (await _broswerChannel.invokeMethod<bool>('printToPDF', {
+      'path': filepath,
+      'pageWidth': pageWidth,
+      'pageHeight': pageHeight,
+    })) ?? false;
+  }
+
   Future<void> _unfocus() async {
     if (_isDisposed) {
       return;

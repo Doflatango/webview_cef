@@ -22,6 +22,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_message_router.h"
 
+#include "util.h"
 #include "message.h"
 
 namespace {
@@ -103,6 +104,21 @@ private:
     OnQueryCallback onQueryCallback_;
 
 	DISALLOW_COPY_AND_ASSIGN(MessageHandler);
+};
+
+class CustomPdfPrintCallback : public CefPdfPrintCallback {
+    private:
+    std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> _result;
+
+    public:
+    CustomPdfPrintCallback(std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) : _result(std::move(result)) {}
+
+    void OnPdfPrintFinished(const CefString& path, bool ok) {
+        std::cout << "CustomPdfPrintCallback::OnPdfPrintFinished" << ok << std::endl;
+        _result->Success(ok);
+    }
+
+    IMPLEMENT_REFCOUNTING(CustomPdfPrintCallback);
 };
 
 }
@@ -480,6 +496,13 @@ void WebviewHandler::GetViewRect(CefRefPtr<CefBrowser> browser, CefRect &rect) {
     }
 }
 
+void WebviewHandler::PrintToPDF(std::string path, const CefPdfPrintSettings& settings, std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result) {
+    std::cout << "WebviewHandler::PrintToPDF" << std::endl;
+    CefRefPtr<CustomPdfPrintCallback> callback = new CustomPdfPrintCallback(std::move(result));
+    std::cout << "WebviewHandler::PrintToPDF 222" << std::endl;
+    this->browser_->GetHost()->PrintToPDF(path, settings, callback);
+}
+
 bool WebviewHandler::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) {
     //todo: hi dpi support
     screen_info.device_scale_factor  = this->dpi_;
@@ -503,7 +526,9 @@ void WebviewHandler::HandleMethodCall(
     if (method_call.method_name().compare("loadUrl") == 0) {
         if (const auto url = std::get_if<std::string>(method_call.arguments())) {
             this->loadUrl(*url);
-            return result->Success();
+            result->Success();
+        } else {
+            result->Error("url is required");
         }
     }
     else if (method_call.method_name().compare("setSize") == 0) {
@@ -599,6 +624,26 @@ void WebviewHandler::HandleMethodCall(
 
         this->browser_->GetMainFrame()->SendProcessMessage(PID_RENDERER, msg);
         result->Success();
+    }
+    else if (method_call.method_name().compare("printToPDF") == 0) {
+        const flutter::EncodableMap* m = std::get_if<flutter::EncodableMap>(method_call.arguments());
+
+        auto filepath = util::GetStringFromMap(m, "path");
+        if (!filepath) {
+            result->Error("path is required");
+            return;
+        }
+
+        CefPdfPrintSettings printSettings = CefPdfPrintSettings{};
+
+        auto page_width = util::GetIntFromMap(m, "pageWidth");
+        auto page_height = util::GetIntFromMap(m, "pageHieght");
+        if (page_width && page_height) {
+            printSettings.page_width = *page_width;
+            printSettings.page_height = *page_height;
+        }
+
+        this->PrintToPDF(*filepath, printSettings, std::move(result));
     }
     else if (method_call.method_name().compare("dispose") == 0) {
         this->Unfocus();

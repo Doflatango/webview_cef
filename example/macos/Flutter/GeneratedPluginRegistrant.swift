@@ -5,8 +5,10 @@
 import FlutterMacOS
 import Foundation
 
+import path_provider_foundation
 import webview_cef
 
 func RegisterGeneratedPlugins(registry: FlutterPluginRegistry) {
+  PathProviderPlugin.register(with: registry.registrar(forPlugin: "PathProviderPlugin"))
   WebviewCefPlugin.register(with: registry.registrar(forPlugin: "WebviewCefPlugin"))
 }

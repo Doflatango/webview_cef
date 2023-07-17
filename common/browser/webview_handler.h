@@ -165,6 +165,8 @@ public:
     void stopLoad();
     void openDevTools();
 
+    void PrintToPDF(std::string path, const CefPdfPrintSettings& settings, std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+
     static const CefRefPtr<CefBrowser> CurrentFocusedBrowser();
 
 private:

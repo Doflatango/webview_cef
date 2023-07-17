@@ -27,6 +27,8 @@ list(APPEND PLUGIN_SOURCES
   "texture_handler.h"
   "${CMAKE_CURRENT_LIST_DIR}/../common/message.h"
   "${CMAKE_CURRENT_LIST_DIR}/../common/message.cc"
+  "${CMAKE_CURRENT_LIST_DIR}/../common/util.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../common/util.cc"
   "${CMAKE_CURRENT_LIST_DIR}/../common/client_app.cc"
   "${CMAKE_CURRENT_LIST_DIR}/../common/client_app.h"
   "${CMAKE_CURRENT_LIST_DIR}/../common/browser/webview_app.cc"

@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:webview_cef/webview_cef.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:path/path.dart';
 
 void main() {
   runApp(const MyApp());
@@ -206,6 +208,19 @@ class _BrowserViewState extends State<BrowserView> with AutomaticKeepAliveClient
                     _controller.loadUrl('https://google.com/search?q=$url');
                   }
                 },
+              ),
+            ),
+            SizedBox(
+              height: 48,
+              child: MaterialButton(
+                onPressed: () async {
+                  final tempDir = await getTemporaryDirectory();
+                  final ok = await _controller.printToPDF(filepath: join(tempDir.path, 'a.pdf'));
+                  if (ok) {
+                    print('PDF file wrote at ${join(tempDir.path, 'a.pdf')}');
+                  }
+                },
+                child: const Icon(Icons.picture_as_pdf),
               ),
             ),
           ],
