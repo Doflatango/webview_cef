@@ -121,11 +121,7 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
                 return MouseRegion(
                   cursor: value.transform,
                   child: child,
-                  onEnter: (event) {
-                    if (!_focusNode.hasFocus) {
-                      if (mounted) FocusScope.of(context).requestFocus(_focusNode);
-                    }
-                  },
+                  onExit: (event) => _controller._unfocus(),
                 );
               },
             ),
