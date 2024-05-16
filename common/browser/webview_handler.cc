@@ -586,6 +586,10 @@ void WebviewHandler::HandleMethodCall(
         this->Unfocus();
         result->Success();
     }
+    else if (method_call.method_name().compare("focus") == 0) {
+        this->Focus();
+        result->Success();
+    }
     else if (method_call.method_name().compare("goForward") == 0) {
         this->goForward();
         result->Success();

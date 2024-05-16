@@ -310,6 +310,14 @@ class WebViewController extends ValueNotifier<bool> {
     })) ?? false;
   }
 
+  Future<void> focus() async {
+    if (_isDisposed) {
+      return;
+    }
+    assert(value);
+    return _broswerChannel.invokeMethod('focus');
+  }
+
   Future<void> _unfocus() async {
     if (_isDisposed) {
       return;

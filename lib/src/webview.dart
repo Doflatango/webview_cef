@@ -122,6 +122,7 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
                   cursor: value.transform,
                   child: child,
                   onExit: (event) => _controller._unfocus(),
+                  onEnter: (event) => _controller.focus(),
                 );
               },
             ),

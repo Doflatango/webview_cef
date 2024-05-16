@@ -82,4 +82,7 @@ mixin _WebViewTextInput implements DeltaTextInputClient {
 
   @override
   updateFloatingCursor(RawFloatingCursorPoint point) {}
+
+  @override
+  void insertContent(KeyboardInsertedContent content) {}
 }
