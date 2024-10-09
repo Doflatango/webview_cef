@@ -1,5 +1,4 @@
-// Copyright (c) 2021 Marshall A. Greenblatt. Portions copyright (c) 2021
-// Google Inc. All rights reserved.
+// Copyright (c) 2022 Marshall A. Greenblatt. All rights reserved.
 //
 // Redistribution and use in source and binary forms, with or without
 // modification, are permitted provided that the following conditions are
@@ -28,33 +27,43 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
+// ---------------------------------------------------------------------------
+//
+// The contents of this file must follow a specific format in order to
+// support the CEF translator tool. See the translator.README.txt file in the
+// tools directory for more information.
+//
 
-#ifndef CEF_INCLUDE_BASE_CEF_CXX17_BACKPORTS_H_
-#define CEF_INCLUDE_BASE_CEF_CXX17_BACKPORTS_H_
+#ifndef CEF_INCLUDE_CEF_SHARED_MEMORY_REGION_H_
+#define CEF_INCLUDE_CEF_SHARED_MEMORY_REGION_H_
 #pragma once
 
-#if defined(USING_CHROMIUM_INCLUDES)
-// When building CEF include the Chromium header directly.
-#include "base/cxx17_backports.h"
-#else  // !USING_CHROMIUM_INCLUDES
-// The following was removed from Chromium in https://crrev.com/78734f77be.
+#include "include/cef_base.h"
 
-namespace base {
+///
+/// Class that wraps platform-dependent share memory region mapping.
+///
+/*--cef(source=library)--*/
+class CefSharedMemoryRegion : public virtual CefBaseRefCounted {
+ public:
+  ///
+  /// Returns true if the mapping is valid.
+  ///
+  /*--cef()--*/
+  virtual bool IsValid() = 0;
 
-// C++14 implementation of C++17's std::size():
-// http://en.cppreference.com/w/cpp/iterator/size
-template <typename Container>
-constexpr auto size(const Container& c) -> decltype(c.size()) {
-  return c.size();
-}
+  ///
+  /// Returns the size of the mapping in bytes. Returns 0 for invalid instances.
+  ///
+  /*--cef()--*/
+  virtual size_t Size() = 0;
 
-template <typename T, size_t N>
-constexpr size_t size(const T (&array)[N]) noexcept {
-  return N;
-}
+  ///
+  /// Returns the pointer to the memory. Returns nullptr for invalid instances.
+  /// The returned pointer is only valid for the life span of this object.
+  ///
+  /*--cef()--*/
+  virtual void* Memory() = 0;
+};
 
-}  // namespace base
-
-#endif  // !USING_CHROMIUM_INCLUDES
-
-#endif  // CEF_INCLUDE_BASE_CEF_CXX17_BACKPORTS_H_
+#endif  // CEF_INCLUDE_CEF_SHARED_MEMORY_REGION_H_
