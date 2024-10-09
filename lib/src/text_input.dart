@@ -38,12 +38,12 @@ mixin _WebViewTextInput implements DeltaTextInputClient {
         }
       } else if (d is TextEditingDeltaReplacement) {
         if (d.composing.isValid) {
-          _composingText = d.replacementText;
-          _pluginChannel.invokeMethod('imeSetComposition', _composingText);
+          // _composingText = d.replacementText;
+          _pluginChannel.invokeMethod('imeCommitText', d.replacementText);
         }
       } else if (d is TextEditingDeltaNonTextUpdate) {
         if (_composingText.isNotEmpty) {
-          _pluginChannel.invokeMethod('imeCommitText', _composingText);
+          // _pluginChannel.invokeMethod('imeCommitText', _composingText);
           _composingText = '';
         }
       }

@@ -3,6 +3,7 @@ library webview;
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:ui';
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
@@ -38,6 +39,8 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
       updateIMEComposionPosition(x, y, box.localToGlobal(Offset.zero));
     };
 
+    if (_controller.isHeadless) _controller.attachView();
+
     /// Update the widget once the browser being ready
     _controller.ready.then((_) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -48,8 +51,19 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
   }
 
   @override
+  void didUpdateWidget(covariant WebView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+
+    if (_controller != oldWidget.controller) {
+      oldWidget.controller.deattachView();
+    }
+  }
+
+  @override
   void dispose() {
     detachTextInputClient();
+    _controller._onIMEComposionPositionChanged = null;
+    _controller.deattachView();
     _focusNode.dispose();
     super.dispose();
   }
@@ -72,8 +86,13 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
           focusNode: _focusNode,
           autofocus: false,
           onFocusChange: (focused) {
-            // print('webview onFocusChange chagned to: ${FocusScope.of(context).focusedChild?.toString()}');
-            // if (!focused) _controller._unfocus();
+            if (_focusNode.hasFocus) {
+              attachTextInputClient();
+              _controller.focus();
+            } else {
+              detachTextInputClient();
+              _controller._unfocus();
+            }
           },
           onKeyEvent: _handleKeyEvent,
           child: Listener(
@@ -83,12 +102,10 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
             onPointerDown: (ev) async {
               _controller._cursorClickDown(ev.localPosition);
 
-              // Fixes for getting focus immediately.
               if (!_focusNode.hasFocus) {
-                // _focusNode.unfocus();
-                // await Future<void>.delayed(const Duration(milliseconds: 1));
+                /// Fixes for getting focus immediately.
+                await Future<void>.delayed(const Duration(milliseconds: 1));
                 if (mounted) FocusScope.of(context).requestFocus(_focusNode);
-                attachTextInputClient();
               }
             },
             onPointerUp: (ev) {
@@ -116,13 +133,16 @@ class WebViewState extends State<WebView> with _WebViewTextInput {
             },
             child: ValueListenableBuilder<CursorType>(
               valueListenable: _controller._cursorType,
-              child: Texture(textureId: _controller._textureId),
+              child: FutureBuilder(
+                future: _controller._textureIdCompleter.future,
+                builder: (context, snapshot) {
+                  return snapshot.hasData ? Texture(textureId: snapshot.data!) : Container();
+                },
+              ),
               builder: (context, value, child) {
                 return MouseRegion(
                   cursor: value.transform,
                   child: child,
-                  onExit: (event) => _controller._unfocus(),
-                  onEnter: (event) => _controller.focus(),
                 );
               },
             ),

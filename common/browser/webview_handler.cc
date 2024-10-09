@@ -22,6 +22,7 @@
 #include "include/wrapper/cef_helpers.h"
 #include "include/wrapper/cef_message_router.h"
 
+#include "texture_handler.h"
 #include "util.h"
 #include "message.h"
 
@@ -87,10 +88,9 @@ public:
 
 	explicit MessageHandler(OnQueryCallback cb) : onQueryCallback_(cb) {};
 
-	// Called due to cefQuery execution in message_router.html.
 	bool OnQuery(CefRefPtr<CefBrowser> browser,
 				 CefRefPtr<CefFrame> frame,
-				 int64 query_id,
+				 int64_t query_id,
 				 const CefString& request,
 				 bool persistent,
 				 CefRefPtr<Callback> callback) override {
@@ -126,9 +126,10 @@ const CefRefPtr<CefBrowser> WebviewHandler::CurrentFocusedBrowser() {
     return current_focused_browser_;
 }
 
-WebviewHandler::WebviewHandler(flutter::BinaryMessenger* messenger, int browser_id, bool headless) {
+WebviewHandler::WebviewHandler(flutter::BinaryMessenger* messenger, int browser_id, float dpi) {
     const auto browser_id_str = std::to_string(browser_id);
     const auto method_channel_name = "webview_cef/" + browser_id_str;
+    dpi_ = dpi;
     browser_channel_ = std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
         messenger,
         method_channel_name,
@@ -256,6 +257,26 @@ void WebviewHandler::OnAfterCreated(CefRefPtr<CefBrowser> browser) {
     this->message_router_->AddHandler(message_handler_.get(), false);
 }
 
+// Returns texture_id
+int64_t WebviewHandler::AttachView() {
+    if (!this->onPaintCallback) {
+        this->texture_handler.reset(new TextureHandler());
+        this->onPaintCallback = [this](const void* buffer, int32_t width, int32_t height) {
+            this->texture_handler->onPaintCallback(buffer, width, height);
+        };
+    }
+    return this->texture_handler->texture_id();
+}
+
+void WebviewHandler::DeattachView() {
+    this->onPaintCallback = nullptr;
+    this->texture_handler.reset();
+}
+
+void WebviewHandler::Invalidate() {
+    this->browser_->GetHost()->Invalidate(CefBrowserHost::PaintElementType::PET_VIEW);
+}
+
 bool WebviewHandler::DoClose(CefRefPtr<CefBrowser> browser) {
     CEF_REQUIRE_UI_THREAD();
 
@@ -270,6 +291,7 @@ bool WebviewHandler::DoClose(CefRefPtr<CefBrowser> browser) {
     this->message_router_->RemoveHandler(message_handler_.get());
     this->message_handler_.reset();
     this->message_router_ = nullptr;
+    this->texture_handler.reset();
 
     if (this->onBrowserClose) this->onBrowserClose();
     return false;
@@ -349,10 +371,16 @@ void WebviewHandler::sendScrollEvent(int x, int y, int deltaX, int deltaY) {
 
 void WebviewHandler::changeSize(float a_dpi, int w, int h)
 {
-    this->dpi_ = a_dpi;
-    this->width_ = w;
-    this->height_ = h;
-    this->browser_->GetHost()->WasResized();
+    if (this->dpi_ != a_dpi) {
+        this->dpi_ = a_dpi;
+        this->browser_->GetHost()->NotifyScreenInfoChanged();
+    }
+
+    if (this->width_ != (uint32_t)w || this->height_ != (uint32_t)h) {
+        this->width_ = w;
+        this->height_ = h;
+        this->browser_->GetHost()->WasResized();
+    }
 }
 
 void WebviewHandler::updateViewOffset(int x, int y)
@@ -501,9 +529,12 @@ void WebviewHandler::PrintToPDF(std::string path, const CefPdfPrintSettings& set
 }
 
 bool WebviewHandler::GetScreenInfo(CefRefPtr<CefBrowser> browser, CefScreenInfo& screen_info) {
-    //todo: hi dpi support
-    screen_info.device_scale_factor  = this->dpi_;
-    return true;
+    if (screen_info.device_scale_factor != this->dpi_) {
+        screen_info.device_scale_factor = this->dpi_;
+        return true;
+    }
+
+    return false;
 }
 
 void WebviewHandler::OnPaint(CefRefPtr<CefBrowser> browser, CefRenderHandler::PaintElementType type,
@@ -639,17 +670,28 @@ void WebviewHandler::HandleMethodCall(
 
         auto backgrounds_enabled = util::GetBoolFromMap(m, "backgroundsEnabled");
         if (backgrounds_enabled) {
-            printSettings.backgrounds_enabled = true;
+            printSettings.print_background = true;
         }
 
         auto page_width = util::GetIntFromMap(m, "pageWidth");
         auto page_height = util::GetIntFromMap(m, "pageHeight");
         if (page_width && page_height) {
-            printSettings.page_width = *page_width;
-            printSettings.page_height = *page_height;
+            printSettings.paper_width = *page_width;
+            printSettings.paper_height = *page_height;
         }
 
         this->PrintToPDF(*filepath, printSettings, std::move(result));
+    }
+    else if (method_call.method_name().compare("attachView") == 0) {
+        result->Success(flutter::EncodableValue(this->AttachView()));
+    }
+    else if (method_call.method_name().compare("deattachView") == 0) {
+        this->DeattachView();
+        result->Success();
+    }
+    else if (method_call.method_name().compare("invalidate") == 0) {
+        this->Invalidate();
+        result->Success();
     }
     else if (method_call.method_name().compare("dispose") == 0) {
         this->Unfocus();
@@ -678,7 +720,9 @@ bool WebviewHandler::OnProcessMessageReceived(CefRefPtr<CefBrowser> browser,
 }
 
 void WebviewHandler::OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
-                                       TerminationStatus status) {
+                                               TerminationStatus status,
+                                               int error_code,
+                                               const CefString& error_string) {
     CEF_REQUIRE_UI_THREAD();
 
     this->message_router_->OnRenderProcessTerminated(browser);

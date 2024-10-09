@@ -23,8 +23,8 @@ set(PLUGIN_NAME "webview_cef_plugin")
 list(APPEND PLUGIN_SOURCES
   "webview_cef_plugin.cpp"
   "webview_cef_plugin.h"
-  "texture_handler.cc"
-  "texture_handler.h"
+  "${CMAKE_CURRENT_LIST_DIR}/../common/texture_handler.cc"
+  "${CMAKE_CURRENT_LIST_DIR}/../common/texture_handler.h"
   "${CMAKE_CURRENT_LIST_DIR}/../common/message.h"
   "${CMAKE_CURRENT_LIST_DIR}/../common/message.cc"
   "${CMAKE_CURRENT_LIST_DIR}/../common/util.h"
@@ -79,6 +79,7 @@ set(webview_cef_bundled_libraries
     "${CMAKE_CURRENT_SOURCE_DIR}/cefbins/resources/locales"
     "${CMAKE_CURRENT_SOURCE_DIR}/cefbins/resources/icudtl.dat"
     "${CMAKE_CURRENT_SOURCE_DIR}/cefbins/resources/resources.pak"
+    "${CMAKE_CURRENT_SOURCE_DIR}/cefbins/resources/chrome_100_percent.pak"
     $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/cefbins/debug/bin/chrome_elf.dll>
     $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/cefbins/debug/bin/libcef.dll>
     $<$<CONFIG:Debug>:${CMAKE_CURRENT_SOURCE_DIR}/cefbins/debug/bin/v8_context_snapshot.bin>

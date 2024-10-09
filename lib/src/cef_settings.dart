@@ -25,14 +25,4 @@ class CefSettings {
   /// result in the sandbox blocking read/write access to the [cachePath]
   /// directory.
   String? rootCachePath;
-
-  /// The location where user data such as the Widevine CDM module and spell
-  /// checking dictionary files will be stored on disk. If this value is empty
-  /// then the default platform-specific user data directory will be used
-  /// ("~/.config/cef_user_data" directory on Linux, "~/Library/Application
-  /// Support/CEF/User Data" directory on MacOS, "AppData\Local\CEF\User Data"
-  /// directory under the user profile directory on Windows). If this value is
-  /// non-empty then it must be an absolute path. When using the Chrome runtime
-  /// this value will be ignored in favor of the [rootCachePath] value.
-  String? userDataPath;
 }

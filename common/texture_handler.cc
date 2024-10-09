@@ -1,7 +1,6 @@
 #include "texture_handler.h"
 
-TextureHandler::TextureHandler(flutter::TextureRegistrar* texture_registrar) {
-    texture_registrar_ = texture_registrar;
+TextureHandler::TextureHandler() {
     m_texture_ = std::make_unique<flutter::TextureVariant>(
         flutter::PixelBufferTexture([this](size_t width, size_t height) -> const FlutterDesktopPixelBuffer* {
             auto buffer = pixel_buffer.get();
@@ -14,7 +13,7 @@ TextureHandler::TextureHandler(flutter::TextureRegistrar* texture_registrar) {
             return buffer;
         })
     );
-    texture_id_ = texture_registrar->RegisterTexture(m_texture_.get());
+    texture_id_ = TextureHandler::texture_registrar_->RegisterTexture(m_texture_.get());
 }
 
 TextureHandler::~TextureHandler() {
@@ -63,4 +62,9 @@ void TextureHandler::SwapBufferFromBgraToRgba(void* _dest, const void* _src, int
             | (bgra & 0x000000ff) << 16; // Blue >> Red.
         dest[i] = rgba;
     }
+}
+
+flutter::TextureRegistrar* TextureHandler::texture_registrar_;
+void TextureHandler::InitTextureRegistrar(flutter::TextureRegistrar* registrar) {
+    TextureHandler::texture_registrar_ = registrar;
 }

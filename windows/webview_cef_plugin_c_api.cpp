@@ -103,6 +103,8 @@ FLUTTER_PLUGIN_EXPORT int InitCEFProcesses() {
 	auto args = ::GetCommandLineW();
 	command_line->InitFromString(args);
 
+	// command_line->AppendSwitch("enable-logging");
+	// command_line->AppendSwitchWithValue("v", "1");
 	CefMainArgs mainArgs;
 	CefRefPtr<CefApp> app = nullptr;
 	ClientApp::ProcessType process_type = ClientApp::GetProcessType(command_line);

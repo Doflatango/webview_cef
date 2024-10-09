@@ -8,6 +8,7 @@
 
 #include "include/cef_client.h"
 #include "include/wrapper/cef_message_router.h"
+#include "texture_handler.h"
 #include <flutter/method_channel.h>
 #include <flutter/standard_method_codec.h>
 #include <flutter/binary_messenger.h>
@@ -45,13 +46,14 @@ public CefLoadHandler,
 public CefRenderHandler,
 public CefRequestHandler {
 public:
+    std::shared_ptr<TextureHandler> texture_handler;
     std::function<void(const void*, int32_t width, int32_t height)> onPaintCallback;
     std::function<void()> onBrowserClose;
     std::function<void (CefRefPtr<CefBrowser> browser,
                         const CefRange& selection_range,
                         const CefRenderHandler::RectList& character_bounds)> onImeCompositionRangeChangedCallback;
 
-    explicit WebviewHandler(flutter::BinaryMessenger* messenger, int browser_id, bool headless);
+    explicit WebviewHandler(flutter::BinaryMessenger* messenger, int browser_id, float dpi);
     ~WebviewHandler();
 
     // CefClient methods:
@@ -141,7 +143,9 @@ public:
                         bool user_gesture,
                         bool is_redirect) override;
     void OnRenderProcessTerminated(CefRefPtr<CefBrowser> browser,
-                                   TerminationStatus status) override;
+                                   TerminationStatus status,
+                                   int error_code,
+                                   const CefString& error_string) override;
 
     // Request that all existing browser windows close.
     void CloseAllBrowsers(bool force_close);
@@ -166,6 +170,11 @@ public:
     void openDevTools();
 
     void PrintToPDF(std::string path, const CefPdfPrintSettings& settings, std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>> result);
+
+    // Returns texture_id
+    int64_t AttachView();
+    void DeattachView();
+    void Invalidate();
 
     static const CefRefPtr<CefBrowser> CurrentFocusedBrowser();
 

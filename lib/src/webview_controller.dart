@@ -27,7 +27,6 @@ _startCEF() async {
     _pluginChannel.invokeMethod('startCEF', {
       'cachePath': GlobalCefSettings.cachePath,
       'rootCachePath': GlobalCefSettings.rootCachePath,
-      'userDataPath': GlobalCefSettings.userDataPath,
     });
   }
 
@@ -46,12 +45,19 @@ const _kEventLoadError = "loadError";
 const _kIMEComposionPositionChanged = "imeComposionPositionChanged";
 const _kEventAsyncChannelMessage = 'asyncChannelMessage';
 
-class WebViewController extends ValueNotifier<bool> {
+class WebViewController extends ChangeNotifier {
   static int _id = 0;
 
   final Completer<void> _creatingCompleter = Completer<void>();
+  bool _isInitialized = false;
+
+  bool _headless = false;
+  bool get isHeadless => _headless;
+
   late final int _browserID;
-  int _textureId = 0;
+  int get browserID => _browserID;
+
+  Completer<int> _textureIdCompleter = Completer();
   bool _isDisposed = false;
   late final MethodChannel _broswerChannel;
   late final EventChannel _eventChannel;
@@ -59,7 +65,6 @@ class WebViewController extends ValueNotifier<bool> {
 
   final ValueNotifier<CursorType> _cursorType = ValueNotifier(CursorType.pointer);
 
-  final bool headless;
   Future<void> get ready => _creatingCompleter.future;
 
   TitleChangeCallback? onTitleChanged;
@@ -83,14 +88,15 @@ class WebViewController extends ValueNotifier<bool> {
   CefQueryCallback? onCefQuery;
 
   WebViewController({
-    this.headless = false,
-  }) : super(false);
+    bool headless = false,
+  }) : _headless = headless;
 
   /// Initializes the underlying platform view.
   Future<void> initialize() async {
-    if (_isDisposed) {
-      return Future<void>.value();
-    }
+    assert(!_isDisposed);
+
+    if (_isDisposed || _isInitialized) return;
+    _isInitialized = true;
 
     await _startCEF();
 
@@ -98,22 +104,51 @@ class WebViewController extends ValueNotifier<bool> {
       _browserID = ++_id;
       _broswerChannel = MethodChannel('webview_cef/$_browserID');
       _broswerChannel.setMethodCallHandler(_methodCallhandler);
-      final createBrowserArgs = {'browserID': _browserID, 'headless': headless};
-      _textureId = await _pluginChannel.invokeMethod<int>('createBrowser', createBrowserArgs) ?? 0;
+
+      final createBrowserArgs = {
+        'browserID': _browserID,
+        'headless': _headless,
+        'dpi': PlatformDispatcher.instance.implicitView?.devicePixelRatio,
+      };
+      final textureId = await _pluginChannel.invokeMethod<int>('createBrowser', createBrowserArgs) ?? 0;
+      if (textureId != 0) _textureIdCompleter.complete(textureId);
       _eventChannel = EventChannel('webview_cef/$_browserID/events');
       _eventStreamSubscription = _eventChannel.receiveBroadcastStream().listen(_handleBrowserEvents);
     } on PlatformException catch (e) {
       _creatingCompleter.completeError(e);
     }
+    notifyListeners();
 
     return _creatingCompleter.future;
+  }
+
+  deattachView() async {
+    assert(!_headless);
+
+    _headless = true;
+    _textureIdCompleter = Completer();
+    await _broswerChannel.invokeMethod<int>('deattachView');
+    notifyListeners();
+  }
+
+  attachView() async {
+    assert(_headless);
+
+    _headless = false;
+    _broswerChannel.invokeMethod<int>('attachView').then((tid) {
+      _textureIdCompleter.complete(tid);
+    });
+    notifyListeners();
+  }
+
+  invalidate() async {
+    await _broswerChannel.invokeMethod<int>('invalidate');
   }
 
   Future<dynamic> _methodCallhandler(MethodCall call) async {
     switch (call.method) {
       case 'onBrowserCreated':
         _creatingCompleter.complete();
-        value = true;
         return null;
       case 'onCefQuery':
         onCefQuery?.call(request: call.arguments);
@@ -186,69 +221,66 @@ class WebViewController extends ValueNotifier<bool> {
 
   /// Loads the given [url].
   Future<void> loadUrl(String url) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('loadUrl', url);
   }
 
   Future<String?> getUrl() async {
-    if (_isDisposed) {
-      return null;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return null;
+
     return _broswerChannel.invokeMethod('getUrl');
   }
 
   Future<void> stopLoad() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('stopLoad');
   }
 
   /// Reloads the current document.
   Future<void> reload() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('reload');
   }
 
   Future<bool> canGoForward() async {
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return false;
+
     return await _broswerChannel.invokeMethod('canGoForward');
   }
 
   Future<void> goForward() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('goForward');
   }
 
   Future<bool> canGoBack() async {
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return false;
+
     return await _broswerChannel.invokeMethod('canGoBack');
   }
 
   Future<void> goBack() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('goBack');
   }
 
   Future<dynamic> evaluateJavaScript(String code, [bool throwEvalError = false]) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     final message = EvaluateJavaScriptMessage(code, throwEvalError: throwEvalError);
     return _AsyncChannelMessageManager.invokeMethod(_broswerChannel, message);
   }
@@ -257,20 +289,18 @@ class WebViewController extends ValueNotifier<bool> {
   bool allowShortcutZoom = false;
   double _zoomLevel = 1.0;
   Future<double?> getZoomLevel() async {
-    if (_isDisposed) {
-      return null;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return null;
+
     final v = await _broswerChannel.invokeMethod<double>('getZoomLevel');
     if (v != null) _zoomLevel = v;
     return v;
   }
 
   Future<void> setZoomLevel(double level) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     await _broswerChannel.invokeMethod('setZoomLevel', level);
     _zoomLevel = level;
   }
@@ -278,10 +308,9 @@ class WebViewController extends ValueNotifier<bool> {
   Future<void> _increaseZoomLevel(double dz) => setZoomLevel(_zoomLevel + dz);
 
   Future<void> openDevTools() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('openDevTools');
   }
 
@@ -298,10 +327,9 @@ class WebViewController extends ValueNotifier<bool> {
     int? pageHeight,
     bool backgroundsEnabled = true,
   }) async {
-    if (_isDisposed) {
-      return false;
-    }
-    assert(value);
+   assert(!_isDisposed);
+    if (_isDisposed) return false;
+
     return (await _broswerChannel.invokeMethod<bool>('printToPDF', {
       'path': filepath,
       'pageWidth': pageWidth,
@@ -311,74 +339,66 @@ class WebViewController extends ValueNotifier<bool> {
   }
 
   Future<void> focus() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('focus');
   }
 
   Future<void> _unfocus() async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod('unfocus');
   }
 
   /// Moves the virtual cursor to [position].
   Future<void> _cursorMove(Offset position) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel
         .invokeMethod('cursorMove', [position.dx.round(), position.dy.round()]);
   }
 
   Future<void> _cursorDragging(Offset position) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod(
         'cursorDragging', [position.dx.round(), position.dy.round()]);
   }
 
   Future<void> _cursorClickDown(Offset position) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod(
         'cursorClickDown', [position.dx.round(), position.dy.round()]);
   }
 
   Future<void> _cursorClickUp(Offset position) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod(
         'cursorClickUp', [position.dx.round(), position.dy.round()]);
   }
 
   /// Sets the horizontal and vertical scroll delta.
   Future<void> _setScrollDelta(Offset position, int dx, int dy) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel.invokeMethod(
         'setScrollDelta', [position.dx.round(), position.dy.round(), dx, dy]);
   }
 
   /// Sets the surface size to the provided [size].
   Future<void> _setSize(double dpi, Size size, Offset viewOffset) async {
-    if (_isDisposed) {
-      return;
-    }
-    assert(value);
+    assert(!_isDisposed);
+    if (_isDisposed) return;
+
     return _broswerChannel
         .invokeMethod('setSize', [dpi, size.width, size.height, viewOffset.dx, viewOffset.dy]);
   }

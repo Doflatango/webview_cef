@@ -1,6 +1,5 @@
 ﻿#include "webview_cef_plugin.h"
 
-
 #include <flutter/method_channel.h>
 #include <flutter/plugin_registrar_windows.h>
 #include <flutter/standard_method_codec.h>
@@ -23,7 +22,6 @@ namespace webview_cef {
 
 	bool composingText = false;
 
-	flutter::TextureRegistrar* texture_registrar;
 	flutter::BinaryMessenger* messenger;
 
 	CefRefPtr<WebviewApp> app;
@@ -63,16 +61,13 @@ namespace webview_cef {
 		const auto root_cache_path = GetOptionalValue<std::string>(*map, "rootCachePath");
 		if (root_cache_path) CefString(&settings.root_cache_path) = root_cache_path.value();
 
-		const auto user_data_path = GetOptionalValue<std::string>(*map, "userDataPath");
-		if (user_data_path) CefString(&settings.user_data_path) = user_data_path.value();
-
 		return settings;
 	}
 
 	// static
 	void WebviewCefPlugin::RegisterWithRegistrar(
 		flutter::PluginRegistrarWindows* registrar) {
-		texture_registrar = registrar->texture_registrar();
+		TextureHandler::InitTextureRegistrar(registrar->texture_registrar());
 		messenger = registrar->messenger();
 		auto plugin_channel =
 			std::make_unique<flutter::MethodChannel<flutter::EncodableValue>>(
@@ -125,21 +120,14 @@ namespace webview_cef {
 			}
 
 			const auto headless = GetOptionalValue<bool>(*map, "headless").value_or(false);
-			auto handler = new WebviewHandler(messenger, *browser_id, headless);
+			const auto dpi = GetOptionalValue<double>(*map, "dpi").value_or(1);
+			auto handler = new WebviewHandler(messenger, *browser_id, (float)dpi);
+			app->CreateBrowser(handler);
 			if (headless) {
-				app->CreateBrowser(handler);
 				result->Success();
 			} else {
-				auto texture_handler = new TextureHandler(texture_registrar);
-				handler->onPaintCallback = [texture_handler](const void* buffer, int32_t width, int32_t height) {
-					texture_handler->onPaintCallback(buffer, width, height);
-				};
-				handler->onBrowserClose = [texture_handler] () mutable {
-					delete texture_handler;
-				};
-
-				app->CreateBrowser(handler);
-				result->Success(flutter::EncodableValue(texture_handler->texture_id()));
+				auto const texture_id = handler->AttachView();
+				result->Success(flutter::EncodableValue(texture_id));
 			}
 		} else if (method_call.method_name().compare("imeSetComposition") == 0) {
 			auto browser = WebviewHandler::CurrentFocusedBrowser();
